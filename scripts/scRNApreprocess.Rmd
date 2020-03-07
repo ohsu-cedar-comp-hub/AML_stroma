@@ -1,0 +1,275 @@
+---
+title: "Create Seurat Object"
+author: "TEnright"
+date: "1/31/2020"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+params:
+  destDir: "/home/groups/CEDAR/enright/AML_stroma/seuratObj/All_samples"
+  file2save: "default"
+  run2process: "metafile"
+  seed: "1234"
+
+---
+
+
+```{r setup_libs, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(data.table)
+library(knitr)
+library(ggplot2)
+library(DT)
+library(grid)
+library(gridExtra)
+library(dplyr)
+library(future)
+options(future.globals.maxSize = 60000 * 1024^2)
+
+set.seed(as.numeric(params$seed))
+
+out_rds <- snakemake@output[["seurat_obj"]]
+
+# Load library to allow parallelization
+# Note: options are multiprocess, sequential
+run2process <- params$run2process
+directory_out <- params$destDir
+if(!(file.exists(directory_out))) {
+  dir.create(directory_out,showWarnings = FALSE, recursive = TRUE)
+}
+run2process <- read.delim(run2process, header = F)
+integrate_samples <- ifelse(dim(run2process)[1] > 1,TRUE,FALSE)
+```
+
+1. Read output from Cell Ranger
+2. Basic Information
+3. Save Seurat Object
+
+
+
+***
+
+```{r functions, echo = F, eval = T, message = F}
+
+
+percentExplained <- function( seuratObj ) {
+  return(cumsum(seuratObj@reductions$pca@stdev^2)/seuratObj@reductions$pca@misc$total.variance)
+}
+
+get_at_least_percent_dim <- function ( seuratObj , percent = 20 ) {
+  data.use <- percentExplained( seuratObj )
+  return(min(which(data.use >= (percent/100))))  
+}
+
+
+plotPercentExplained <- function( seuratObj , ndims = 20) {
+  data.use <- percentExplained( seuratObj )
+  plot <- ggplot(data = data.frame(dims = 1:ndims, var = data.use[1:ndims])) +
+    geom_point(mapping = aes_string(x = 'dims', y = 'var')) + labs( y = "% variance explained", x = "PC")
+  theme_cowplot()
+  return(plot)
+}
+
+
+```
+
+
+## Create Seurat Object - `r run2process`
+
+
+Processed Run:  `r run2process`   
+
+1. Read output from Cell Ranger
+
+```{r, load_10X, echo=FALSE, warning = F}
+seuratObj_ls <- list()
+min.cells <- 3
+min.features <- 200
+input.data <- NULL
+meta_tab_list <- NULL
+counter <- 1
+
+
+run2process <- run2process[order(run2process[,2]),] #order by sampleID
+#dir.create(paste(directory_out,"Preprocessing",sep="/"), showWarnings = FALSE)
+
+for (i in 1:dim(run2process)[1]){
+	
+	input.data <- Read10X(data.dir = as.character(run2process[i,1]))
+	# Initialize the Seurat object with the raw (non-normalized data).
+	new_seurat_Obj <- CreateSeuratObject(counts = input.data, project = as.character(run2process[i,2]), min.cells = min.cells, min.features = min.features)
+	
+	#merge expression count data with the same sample ID
+	if (i > 1){
+		if (as.character(run2process[i,2]) == as.character(seuratObj_ls[[counter]]@project.name)){
+			#if current sampleID is the same as the sampleID in the list then merge the objects
+			seuratObj_ls[[counter]] <- merge(seuratObj_ls[[counter]],new_seurat_Obj, project = as.character(run2process[i,2]))
+			
+		} else {
+			#if not duplicate then increment counter
+			counter <- counter + 1
+			seuratObj_ls[[counter]] <- new_seurat_Obj
+		}
+	} else {
+		seuratObj_ls[[counter]] <- new_seurat_Obj
+	}
+	for (k in 3:ncol(run2process)){
+		seuratObj_ls[[counter]][[as.character(colnames(run2process)[k])]] <- rep(as.character(run2process[i,k]),nrow(seuratObj_ls[[counter]]@meta.data))
+		meta_tab_list <- c(meta_tab_list,colnames(run2process)[k])
+	}
+	
+	seuratObj_ls[[counter]][["percent.mt"]] <- PercentageFeatureSet(object = seuratObj_ls[[counter]], pattern = "^MT-")
+	#for mouse
+	#seuratObj_ls[[counter]][["percent.mt"]] <- PercentageFeatureSet(object = seuratObj_ls[[counter]], pattern = "^Mt-")
+}
+
+
+setwd(directory_out)
+out_dir <- paste(directory_out)
+```
+
+
+
+### Calculate % Mitochondrial Genes per cell
+```{r, calcMito, echo=FALSE}
+
+
+#Visualize QC metrics as a violin plot
+for (i in 1:length(seuratObj_ls)){
+	print(seuratObj_ls[[i]]@project.name)
+	gPlot <- VlnPlot(object = seuratObj_ls[[i]], features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
+	gPlot <- gPlot + ggtitle(seuratObj_ls[[i]]@project.name)
+	print(gPlot)
+	ggsave(sprintf("%s_VlnPlot.tiff",seuratObj_ls[[i]]@project.name), plot = gPlot, path = out_dir)
+	# Plot density function of percent.mt
+	# Consider how much to include/exclude
+	colors = c('#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33','#a65628','#f781bf','#999999')
+	probs = c(0.99, 0.95, 0.9, 0.85, 0.80)
+	cut_opts = quantile(seuratObj_ls[[i]]@meta.data$percent.mt, probs = probs)
+	color_df <- data.frame(x = cut_opts, col = colors[1:length(cut_opts)])
+	color_df$percent <- rownames(color_df)
+	
+	df <- seuratObj_ls[[i]]@meta.data$percent.mt
+	p1 <- ggplot(as.data.frame(df), aes(x=df)) + geom_density() + ggtitle(sprintf("Distribution of %% Mitochondrial Cells %s", seuratObj_ls[[i]]@project.name)) + xlab("percent mito")
+	for (j in 1:length(cut_opts)) {
+	  p1 <- p1 + geom_vline(xintercept = cut_opts[j], color = colors[j])
+	}
+	print(p1)
+	ggsave(sprintf("%s_density.tiff",seuratObj_ls[[i]]@project.name), plot = p1, path = out_dir)
+	
+	plot1 <- FeatureScatter(seuratObj_ls[[i]], feature1 = "nCount_RNA", feature2 = "percent.mt", pt.size = 0)
+	plot2 <- FeatureScatter(seuratObj_ls[[i]], feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size = 0)
+	gPlot <- CombinePlots(plots = list(plot1, plot2))
+	print(gPlot)
+	ggsave(sprintf("%s_feature_scatter.tiff",seuratObj_ls[[i]]@project.name), plot = gPlot, path = out_dir, units = "cm", height = 10, width = 20 )
+}
+```
+
+
+```{r echo = F, eval = F}
+
+fresh_Feat <- median(seuratObj_ls[[1]][["nFeature_RNA"]]$nFeature_RNA)
+fresh_count <- median(seuratObj_ls[[1]][["nCount_RNA"]]$nCount_RNA)
+fresh_cell <- dim(seuratObj_ls[[1]])[2]
+fresh_features <- dim(seuratObj_ls[[1]])[1]
+
+if (integrate_samples){
+	cultured_Feat <- median(seuratObj_ls[[2]][["nFeature_RNA"]]$nFeature_RNA)
+	cultured_count <- median(seuratObj_ls[[2]][["nCount_RNA"]]$nCount_RNA)
+	cultured_cell <- dim(seuratObj_ls[[2]])[2]
+	cultured_features <- dim(seuratObj_ls[[2]])[1]
+
+	metrics <- data.frame(row.names = c("Fresh","Cultured"), median_genes_per_cell = c( fresh_Feat, cultured_Feat), cell_count = c(fresh_cell,cultured_cell), median_UMI_per_cell = c(fresh_count,cultured_count), features = c(fresh_features,cultured_features))
+}
+kable(metrics)
+```
+
+
+### Calculate SCTransform
+
+```{r, scTx, warning=FALSE, echo=FALSE}
+
+#this is used to calculate the variable features to be used for intgration
+for (i in 1:length(seuratObj_ls)){
+	seuratObj_ls[[i]] <- SCTransform(seuratObj_ls[[i]], verbose = FALSE, return.only.var.genes = FALSE)
+}
+```
+
+
+# 3. Integrate Objects
+
+```{r integrate, message=FALSE, warning = F, echo = T, eval = T}
+
+if(integrate_samples){
+	seuratFeatures <- SelectIntegrationFeatures(object.list = seuratObj_ls, nfeatures = 10000)
+
+	seuratObj_ls <- PrepSCTIntegration(object.list = seuratObj_ls, anchor.features = seuratFeatures, verbose = FALSE)
+	#reference_dataset <- c(1,2) #use if setting up a reference dataset(s)
+
+
+	seurat.anchors <- FindIntegrationAnchors(object.list = seuratObj_ls, normalization.method = "SCT", anchor.features = seuratFeatures, verbose = FALSE) # Add ", reference = reference_dataset" if useing reference_dataset
+
+	all.integrated <- IntegrateData(anchorset = seurat.anchors, normalization.method = "SCT", verbose = FALSE)
+} else {
+	all.integrated <- FindVariableFeatures(seuratObj_ls[[1]], selection.method = "vst", nfeatures = 2000)
+}
+```
+
+# 4. PCA and JackStraw
+
+```{r echo = F, eval = T, warning = F}
+
+all.integrated <- RunPCA(integrated, npcs = 50, verbose = FALSE)
+
+ElbowPlot(all.integrated, ndims = 50,reduction = "pca")
+print(plotPercentExplained(all.integrated, ndims = 50))
+plan("multiprocess", workers = 4)
+all.integrated <- suppressWarnings(JackStraw(
+  all.integrated,
+  reduction = "pca",
+  assay = NULL,
+  dims = 50,
+  num.replicate = 100,
+  prop.freq = 0.01,
+  verbose = TRUE,
+  maxit = 1000
+))
+
+all.integrated <- ScoreJackStraw(all.integrated, dims = 1:50)
+JackStrawPlot(all.integrated, dims = 1:20)
+```
+
+3. Save Seurat Object
+
+### Write the Seurat object to a file
+
+```{r, saveObject, echo=FALSE}
+
+all.integrate@misc[["meta_tab"]] <- meta_tab_list
+
+if (params$file2save == "default") {
+  file2save <- "all_samples"
+} else {
+  file2save <- params$file2save
+}
+integrated_samples <- ifelse(integrate_samples,"integrated","")
+
+saveRDS(object = all.integrated, file = out_rds)
+
+```
+
+
+
+
+
+
+***
+#### Session Information
+```{r, echo=FALSE}
+sessionInfo()
+```
+
+
+

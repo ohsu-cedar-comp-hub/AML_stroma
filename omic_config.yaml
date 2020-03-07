@@ -1,0 +1,33 @@
+assembly:
+  mm10.Ens_96 
+
+FC:
+  1
+  #FDR adjusted p-value cutoff for GO analysis
+adjp:
+  0.01
+
+resolution:
+    0.8
+seed:
+    1234
+max_nFeature:
+    7000
+min_nFeature:
+    200
+max_mito:
+    20
+    #percent
+n_Dims:
+    30
+n_cores:
+    4
+diffexp:
+    global_contrasts:
+        condition: #contrast 1st, baseline 2nd
+            - cultured
+            - flow
+    local_contrasts:
+        mut-vs-wt:
+            - mut
+            - wt

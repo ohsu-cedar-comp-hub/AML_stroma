@@ -13,42 +13,42 @@ import json
 
 resolutions = np.arange(0.3,1.3,.1)
 
-CONTRASTS,=glob_wildcards('input/{contrast}.tsv')
+CONTRASTS,=glob_wildcards('input/{contrast}_metadata.txt')
 
 def get_contrast_global(wildcards):
-    """Return each contrast provided in the configuration file"""
-    return config["diffexp"]["global_contrasts"][wildcards.contrast_DE]
+	"""Return each contrast provided in the configuration file"""
+	return config["diffexp"]["global_contrasts"][wildcards.contrast_DE]
 
 def get_contrast_local(wildcards):
-    """Return each contrast provided in the configuration file"""
-    return config["diffexp"]["local_contrasts"][wildcards.contrast_DE]
+	"""Return each contrast provided in the configuration file"""
+	return config["diffexp"]["local_contrasts"][wildcards.contrast_DE]
 	
 timestamp = ('{:%Y-%m-%d_%H:%M:%S}'.format(datetime.datetime.now()))
 
 configfile:"omic_config.yaml"
 
 with open('cluster.json') as json_file:
-    json_dict = json.load(json_file)
+	json_dict = json.load(json_file)
 
 rule_dirs = list(json_dict.keys())
 
 for rule in rule_dirs:
-    if not os.path.exists(os.path.join(os.getcwd(),'logs',rule)):
-        log_out = os.path.join(os.getcwd(), 'logs', rule)
-        os.makedirs(log_out)
-        print(log_out)
+	if not os.path.exists(os.path.join(os.getcwd(),'logs',rule)):
+		log_out = os.path.join(os.getcwd(), 'logs', rule)
+		os.makedirs(log_out)
+		print(log_out)
 
 
 def message(mes):
-    sys.stderr.write("|--- " + mes + "\n")
+	sys.stderr.write("|--- " + mes + "\n")
 
 for contrast in CONTRASTS:
-    message("10x files in " + contrast + " will be processed")
+	message("10x files in " + contrast + " will be processed")
 
 rule all:
-    input:
+	input:
 		expand(["results/{contrast}/intermediate/{resolution}_RNA_cluster_markers.tsv","results/{contrast}/intermediate/{resolution}_integrated_cluster_markers.tsv"],contrast=CONTRASTS,resolution=resolutions),
-        expand(["results/{contrast}/{contrast}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt", "results/{contrast}/{contrast}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"], contrast=CONTRASTS,FC=config["FC"], adjp=config["adjp"])
+		expand(["results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt", "results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"], contrast=CONTRASTS,FC=config["FC"], adjp=config["adjp"], contrast_DE=config["diffexp"]["global_contrasts"], type = ["RNA","integrated"])
 
 
 include: "rules/seurat.smk"

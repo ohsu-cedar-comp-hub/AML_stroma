@@ -12,8 +12,9 @@ import pandas as pd
 import json
 
 resolutions = np.arange(0.3,1.3,.1)
+resolutions = np.round(resolutions,2)
 
-CONTRASTS,=glob_wildcards('input/{contrast}_metadata.txt')
+WAVES,=glob_wildcards('input/{wave}_metadata.txt')
 
 def get_contrast_global(wildcards):
 	"""Return each contrast provided in the configuration file"""
@@ -42,13 +43,13 @@ for rule in rule_dirs:
 def message(mes):
 	sys.stderr.write("|--- " + mes + "\n")
 
-for contrast in CONTRASTS:
-	message("10x files in " + contrast + " will be processed")
+for wave in WAVES:
+	message("10x files in " + wave + " will be processed")
 
 rule all:
 	input:
-		expand(["results/{contrast}/intermediate/{resolution}_RNA_cluster_markers.tsv","results/{contrast}/intermediate/{resolution}_integrated_cluster_markers.tsv"],contrast=CONTRASTS,resolution=resolutions),
-		expand(["results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt", "results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"], contrast=CONTRASTS,FC=config["FC"], adjp=config["adjp"], contrast_DE=config["diffexp"]["global_contrasts"], type = ["RNA","integrated"])
-
+		expand(["results/{wave}/intermediate/{resolution}_RNA_cluster_markers.tsv","results/{wave}/intermediate/{resolution}_integrated_cluster_markers.tsv"],wave=WAVES,resolution=resolutions),
+		expand(["results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt", "results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"], wave=WAVES,FC=config["FC"], adjp=config["adjp"], contrast_DE=config["diffexp"]["global_contrasts"], type = ["RNA","integrated"]),
+		expand("results/{wave}/post/{adjp}_{FC}_{contrast_DE}/optimal_{type}_summary.html",wave = WAVES,FC=config["FC"], adjp=config["adjp"], contrast_DE=config["diffexp"]["global_contrasts"], type = ["RNA","integrated"])
 
 include: "rules/seurat.smk"

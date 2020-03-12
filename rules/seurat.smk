@@ -2,48 +2,49 @@
 
 rule postprocess:
 	input:
-		optimal_res_file="results/{contrast}/intermediate/{type}_optimal_resolution.txt", 
-		down="results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt",
-		up="results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt",
-		bulk_markers="results/{contrast}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
+		naive_seurat = "results/{wave}/preprocessing/simple_seurat_{wave}.rds",
+		optimal_res_file="results/{wave}/intermediate/{type}_optimal_resolution.txt", 
+		down="results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt",
+		up="results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt",
+		bulk_markers="results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
 	output:
-		html = "results/{contrast}/post/{adjp}_{FC}_{contrast_DE}/optimal_{type}_summary.html",
-		directory = "results/{contrast}/post_{type}/{adjp}_{FC}_{contrast_DE}",
-		seuratObj = "results/{contrast}/post_{type}/{adjp}_{FC}_{contrast_DE}/optimal_seuratObj.rds"
+		html = "results/{wave}/post/{adjp}_{FC}_{contrast_DE}/optimal_{type}_summary.html",
+		seuratObj = "results/{wave}/post_{type}/{adjp}_{FC}_{contrast_DE}/optimal_seuratObj.rds"
 	params:
+		directory = lambda wildcards:"results/{wave}/post_{type}/{adjp}_{FC}_{contrast_DE}".format(wave=wildcards.wave,type=wildcards.type,adjp=wildcards.adjp,FC=wildcards.FC,contrast_DE=wildcards.contrast_DE),
 		seed=config["seed"],
-		input_directory="results/{contrast}/post_processing",
+		input_directory="results/{wave}/post_processing",
 		type = lambda wildcards: "{}".format(wildcards.type)
 	conda:
-		"../envs/monocle3.yml"
+		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/post_processing.Rmd', output_file = {output.html}, params=list(optimal_res = {input.optimal_res_file}, destDir = {output.directory}, seed={params.seed}, input_dir={params.input_directory}, GOdown={input.down}, GOup = {input.up}, type={params.type}, markers={input.bulk_markers}))"	
+		"Rscript rmarkdown::render('../scripts/resolution_post_processing.Rmd', output_file = {output.html}, params=list(optimal_res = {input.optimal_res_file}, destDir = {params.directory}, seed={params.seed}, input_dir={params.input_directory}, GOdown={input.down}, GOup = {input.up}, type={params.type}, markers={input.bulk_markers}))"	
 		
 
 
 rule global_diffexp:
 	input:
-		optimal_res_file="results/{contrast}/intermediate/{type}_optimal_resolution.txt" # extract optimal_res output and get rds from intermediate files
+		optimal_res_file="results/{wave}/intermediate/{type}_optimal_resolution.txt" # extract optimal_res output and get rds from intermediate files
 	output:
-		marker_file = "results/{contrast}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
+		marker_file = "results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
 	params:
 		seed=config["seed"],
-		input_directory = "results/{contrast}/intermediate",
-		out_dir = lambda wildcards: "results/{}/global_diffexp".format(wildcards.contrast),
+		input_directory = "results/{wave}/intermediate",
+		out_dir = lambda wildcards: "results/{}/global_diffexp".format(wildcards.wave),
 		contrast_DE=get_contrast_global, #named list
 		type = lambda wildcards: "{}".format(wildcards.type)
 	conda:
-		"../envs/monocle3.yml"
+		"../envs/seurat.yaml"
 	script:
 		"../scripts/Global_DE.R"	
 
 		
 rule GO_global:
 	input:
-		degFile="results/{contrast}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
+		degFile="results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
 	output:
-		down="results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt",
-		up="results/{contrast}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"
+		down="results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.downFC.{FC}.adjp.{adjp}_BP_GO.txt",
+		up="results/{wave}/GO_global/{type}/{contrast_DE}.diffexp.upFC.{FC}.adjp.{adjp}_BP_GO.txt"
 	params:
 		seed = config["seed"],
 		assembly = config["assembly"],
@@ -65,26 +66,26 @@ rule GO_global:
 		
 rule optimal_res:
 	input:
-		RNA=expand("results/{{contrast}}/intermediate/{resolution}_RNA_cluster_markers.tsv",resolution = resolutions),
-		Integrated=expand("results/{{contrast}}/intermediate/{resolution}_integrated_cluster_markers.tsv",resolution = resolutions)
+		RNA=expand("results/{{wave}}/intermediate/{resolution}_RNA_cluster_markers.tsv",resolution = resolutions),
+		Integrated=expand("results/{{wave}}/intermediate/{resolution}_integrated_cluster_markers.tsv",resolution = resolutions)
 	output:
-		expand("results/{{contrast}}/{type}_optimal_resolution.txt",type=["RNA","integrated"]) #double brackets escape the expanse
+		expand("results/{{wave}}/intermediate/{type}_optimal_resolution.txt",type=["RNA","integrated"]) #double brackets escape the expanse
 	params:
-		out_dir = lambda wildcards: "results/{}".format(wildcards.contrast)
+		out_dir = lambda wildcards: "results/{}/intermediate".format(wildcards.wave)
 	conda:
-		"../envs/monocle3.yml"
+		"../envs/seurat.yaml"
 	script:
 		"../scripts/optimal_res.py"
 		
 rule intermediate_processing:
 	input:
-		"results/{contrast}/preprocessing/SeuratObj_{contrast}.rds"
+		"results/{wave}/preprocessing/SeuratObj_{wave}.rds"
 	output:	
-		RNA="results/{contrast}/intermediate/{resolution}_RNA_cluster_markers.tsv",
-		Integrated="results/{contrast}/intermediate/{resolution}_integrated_cluster_markers.tsv",
-		seuratObj="results/{contrast}/intermediate/{resolution}_SeuratObj.rds"
+		RNA="results/{wave}/intermediate/{resolution}_RNA_cluster_markers.tsv",
+		Integrated="results/{wave}/intermediate/{resolution}_integrated_cluster_markers.tsv",
+		seuratObj="results/{wave}/intermediate/{resolution}_SeuratObj.rds"
 	params:
-		directory= lambda wildcards: "results/{contrast}/intermediate".format(contrast = wilcards.contrast),
+		directory= lambda wildcards: "results/{wave}/intermediate".format(wave = wildcards.wave),
 		resolution = lambda wildcards: "{}".format(wildcards.resolution),
 		seed=config["seed"],
 		max_nFeature=config["max_nFeature"],
@@ -93,21 +94,36 @@ rule intermediate_processing:
 		n_Dims=config["n_Dims"],
 		n_cores=config["n_cores"]
 	conda:
-		"../envs/monocle3.yml"
+		"../envs/seurat.yaml"
 	script:
 		"../scripts/run_FindAllMarkers.R"
 		
+rule simple_merge:
+	input:
+		"input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
+	output:
+		seurat_obj="results/{wave}/preprocessing/simple_seurat_{wave}.rds",
+	params:
+		directory= lambda wildcards: "results/{wave}/preprocessing".format(wave = wildcards.wave),
+		seed=config["seed"],
+		n_Dims=config["n_Dims"],
+		n_cores=config["n_cores"]
+	conda:
+		"../envs/seurat.yaml"
+	script:
+		"../scripts/scRNApreprocess_simple_merge.R"
 		
 rule preprocessing:
 	input:
-		"input/{contrast}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
+		"input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
 	output:
-		#directory="results/{contrast}/preprocessing",
-		seurat_obj="results/{contrast}/preprocessing/SeuratObj_{contrast}.rds",
-		html="results/{contrast}/preprocessing/preprocessing.html"
+		seurat_obj="results/{wave}/preprocessing/SeuratObj_{wave}.rds",
+		html="results/{wave}/preprocessing/preprocessing.html"
 	params:
-		seed=config["seed"]
+		directory= lambda wildcards: "results/{wave}/preprocessing".format(wave = wildcards.wave),
+		seed=config["seed"],
+		reference=config["reference"]
 	conda:
-		"../envs/monocle3.yml"
+		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/scRNApreprocessing.Rmd', output_file = {output.html}, params=list(run2process = {input}, destDir = {output.directory}, seed={params.seed}))"
+		"Rscript rmarkdown::render('../scripts/scRNApreprocessing.Rmd', output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"

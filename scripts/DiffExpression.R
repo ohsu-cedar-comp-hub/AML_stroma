@@ -36,13 +36,14 @@ setwd(output_dir)
 file_path <- output_dir
 
 Idents(seuratObj) <- meta_name
-cluster_markers <- FindAllMarkers(seuratObj, assay = type, ident.1 = contrast, ident.2 = baseline,only.pos = F, logfc.threshold=0.0, min.pct = 0)
-write.table(cluster_markers, file = output_file, sep = "\t", row.names=T, quote=F)
+meta_markers <- FindAllMarkers(seuratObj, assay = type, ident.1 = contrast, ident.2 = baseline,only.pos = F, logfc.threshold=0.0, min.pct = 0)
+write.table(meta_markers, file = output_file, sep = "\t", row.names=T, quote=F)
 
+cluster_markers <- FindAllMarkers(seuratObj, assay = type, ident.1 = contrast, ident.2 = baseline,only.pos = F, logfc.threshold=0.0, min.pct = 0)
 
 
 for (meta in integrated@misc$meta_tab){
-
+	
 	for (uni_m in unique(integrated[[meta]])){
 		
 		

@@ -2,6 +2,7 @@ name: monocle3
 channels:
   - conda-forge
   - defaults
+  - bioconda
 dependencies:
   - _libgcc_mutex=0.1
   - _openmp_mutex=4.5
@@ -94,6 +95,7 @@ dependencies:
   - r-sf=0.8_0
   - r-sp=1.3_2
   - r-units=0.6_5
+  - r-seurat
   - readline=8.0
   - sed=4.7
   - sqlite=3.30.1
@@ -118,5 +120,4 @@ dependencies:
   - xz=5.2.4
   - zlib=1.2.11
   - zstd=1.4.4
-prefix: /home/users/enright/miniconda3/envs/monocle3
 

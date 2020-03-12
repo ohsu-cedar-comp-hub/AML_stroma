@@ -8,14 +8,81 @@
         "o" : "logs/__default__/{rule}_%j.out",
         "e" : "logs/__default__/{rule}_%j.err",
         "c" : 1,
-        "mem" : 50000
+        "mem" : 90000
     },
-    "GO" :
+    "GO_global" :
     {
         "J" : "GO",
         "e" : "logs/{rule}/{rule}_%j.err",
         "o" : "logs/{rule}/{rule}_%j.out",
         "c" : 12,
-        "mem" : 64000
+        "mem" : 90000
+    },
+	"preprocessing" :
+    {
+        "t" : "12:00:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 4,
+        "mem" : 90000
+    },
+	"intermediate_processing" :
+    {
+        "t" : "6:00:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 4,
+        "mem" : 90000
+    },
+	"optimal_res" :
+    {
+        "t" : "0:20:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 1,
+        "mem" : 15000
+    },
+	"global_diffexp" :
+    {
+        "t" : "3:00:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 1,
+        "mem" : 90000
+    },
+	"postprocess" :
+    {
+        "t" : "3:00:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 1,
+        "mem" : 90000
+    },
+	"simple_merge" :
+    {
+        "t" : "3:00:00",
+        "N" : 1,
+        "partition" : "exacloud",
+        "J" : "{rule}",
+        "o" : "logs/{rule}/{rule}_%j.out",
+        "e" : "logs/{rule}/{rule}_%j.err",
+        "c" : 1,
+        "mem" : 90000
     }
 }
+

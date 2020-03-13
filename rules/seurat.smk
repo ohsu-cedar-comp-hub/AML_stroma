@@ -55,7 +55,7 @@ rule GO_global:
 		up_dag_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_dag".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_barplot_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_dag_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		up_consolidated_out = lambda w: "results/{GO_global/}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp),
+		up_consolidated_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_consolidated_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp)
 	conda:
 		"../envs/runGO.yaml"
@@ -126,4 +126,4 @@ rule preprocessing:
 	conda:
 		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/scRNApreprocessing.Rmd', output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"
+		"""Rscript rmarkdown::render("../scripts/scRNApreprocessing.Rmd", output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"""

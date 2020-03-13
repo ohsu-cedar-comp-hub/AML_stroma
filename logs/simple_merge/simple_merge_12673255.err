@@ -1,0 +1,33 @@
+|--- 10x files in wave1 will be processed
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	simple_merge
+	1
+
+[Wed Mar 11 13:46:45 2020]
+rule simple_merge:
+    input: input/wave1_metadata.txt
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    jobid: 0
+    wildcards: wave=wave1
+
+Activating conda environment: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/c195800b
+Error in library(Seurat) : there is no package called ‘Seurat’
+Execution halted
+[Wed Mar 11 13:47:03 2020]
+Error in rule simple_merge:
+    jobid: 0
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    conda-env: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/c195800b
+
+RuleException:
+CalledProcessError in line 114 of /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/rules/seurat.smk:
+Command 'source /home/users/enright/miniconda3/bin/activate '/home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/c195800b'; set -euo pipefail;  Rscript --vanilla /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/scripts/tmp7bf_cf1i.scRNApreprocess_simple_merge.R' returned non-zero exit status 1.
+  File "/home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/rules/seurat.smk", line 114, in __rule_simple_merge
+  File "/home/users/enright/miniconda3/envs/snakemake/lib/python3.6/concurrent/futures/thread.py", line 56, in run
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

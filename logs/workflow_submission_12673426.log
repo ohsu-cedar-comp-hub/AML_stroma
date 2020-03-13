@@ -1,0 +1,55 @@
+|--- 10x files in wave1 will be processed
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cluster nodes: 100
+Job counts:
+	count	jobs
+	2	GO_global
+	1	all
+	2	global_diffexp
+	10	intermediate_processing
+	1	optimal_res
+	2	postprocess
+	1	preprocessing
+	1	simple_merge
+	20
+
+[Wed Mar 11 15:49:50 2020]
+rule simple_merge:
+    input: input/wave1_metadata.txt
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    jobid: 18
+    wildcards: wave=wave1
+
+Submitted job 18 with external jobid 'Submitted batch job 12673427'.
+
+[Wed Mar 11 15:49:50 2020]
+rule preprocessing:
+    input: input/wave1_metadata.txt
+    output: results/wave1/preprocessing/SeuratObj_wave1.rds, results/wave1/preprocessing/preprocessing.html
+    jobid: 15
+    wildcards: wave=wave1
+
+Submitted job 15 with external jobid 'Submitted batch job 12673428'.
+[Wed Mar 11 15:50:30 2020]
+Error in rule preprocessing:
+    jobid: 15
+    output: results/wave1/preprocessing/SeuratObj_wave1.rds, results/wave1/preprocessing/preprocessing.html
+    conda-env: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/e4c490de
+    shell:
+        Rscript rmarkdown::render('../scripts/scRNApreprocessing.Rmd', output_file = 'results/wave1/preprocessing/preprocessing.html', params=list(run2process = 'input/wave1_metadata.txt', destDir = 'results/wave1/preprocessing', seed='1234', reference_set='cultured'))
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+    cluster_jobid: Submitted batch job 12673428
+
+Error executing rule preprocessing on cluster (jobid: 15, external: Submitted batch job 12673428, jobscript: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/tmp.khpfqm0_/snakejob.preprocessing.15.sh). For error details see the cluster log and the log files of the involved rule(s).
+[Wed Mar 11 15:51:50 2020]
+Error in rule simple_merge:
+    jobid: 18
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    conda-env: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/e4c490de
+    cluster_jobid: Submitted batch job 12673427
+
+Error executing rule simple_merge on cluster (jobid: 18, external: Submitted batch job 12673427, jobscript: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/tmp.khpfqm0_/snakejob.simple_merge.18.sh). For error details see the cluster log and the log files of the involved rule(s).
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/log/2020-03-11T154949.398131.snakemake.log

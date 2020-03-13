@@ -1,0 +1,33 @@
+|--- 10x files in wave1 will be processed
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	simple_merge
+	1
+
+[Wed Mar 11 15:50:16 2020]
+rule simple_merge:
+    input: input/wave1_metadata.txt
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    jobid: 0
+    wildcards: wave=wave1
+
+Activating conda environment: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/e4c490de
+Error in library(knitr) : there is no package called ‘knitr’
+Execution halted
+[Wed Mar 11 15:51:30 2020]
+Error in rule simple_merge:
+    jobid: 0
+    output: results/wave1/preprocessing/simple_seurat_wave1.rds
+    conda-env: /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/e4c490de
+
+RuleException:
+CalledProcessError in line 114 of /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/rules/seurat.smk:
+Command 'source /home/users/enright/miniconda3/bin/activate '/home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/conda/e4c490de'; set -euo pipefail;  Rscript --vanilla /home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/.snakemake/scripts/tmpun4c7bol.scRNApreprocess_simple_merge.R' returned non-zero exit status 1.
+  File "/home/groups/CEDAR/enright/AML_stroma/seuratObj/pipeline/rules/seurat.smk", line 114, in __rule_simple_merge
+  File "/home/users/enright/miniconda3/envs/snakemake/lib/python3.6/concurrent/futures/thread.py", line 56, in run
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

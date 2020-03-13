@@ -106,6 +106,7 @@ dependencies:
   - r-digest=0.6.22
   - r-dplyr=0.8.3
   - r-dqrng=0.2.1
+  - r-dt
   - r-ellipsis=0.3.0
   - r-fansi=0.4.0
   - r-fastmap=1.0.1

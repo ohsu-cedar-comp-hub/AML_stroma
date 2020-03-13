@@ -1,0 +1,378 @@
+---
+title: "Overview Summary"
+author: "TEnright"
+date: "11/08/2019"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
+params:
+	optimal_res : "optimal_res.txt"
+	destDir : "PATH/TO/OUTPUT", 
+	seed:"1234"
+	input_dir:"PATH/TO/INPUT/DIR"
+	GOdown:"GOdown.txt"
+	GOup:"GOup.txt"
+	type:"RNA-or-integrated"
+	markers:"markers_file.txt"
+	contrast: "condition"
+	naive_seurat: "seurat.rds"
+---
+
+1. Read nomalized,integrated, and labelled seurat object
+2. Cell/Cluster Information
+3. Differential Expression
+
+```{r setup_libs, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(cowplot)
+library(sctransform)
+library(data.table)
+library(knitr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(DT)
+library(plyr)
+library(future)
+library(tidyr)
+library(plotly)
+options(future.globals.maxSize = 96000 * 1024^2)
+set.seed(as.numeric(params$seed))
+```
+
+# 1. Read nomalized and integrated seurat object
+```{r readObject, warning = F, echo = T}
+naive_seurat <- params$naive_seurat
+input_dir <- params$input_dir
+out_dir <- params$destDir
+type <- params$type
+marker_file <- params$markers
+GO_down <- params$GOdown
+GO_up <- params$GOup
+optimal_res_file <- params$optimal_res
+contrast <- params$contrast
+
+if(!(file.exists(out_dir))) {
+  dir.create(out_dir,showWarnings = FALSE, recursive = TRUE)
+}
+optimal_res <- as.double(read.table(optimal_res_file)[1,1]) #according to the python script from Joey
+assay <- "integrated"
+
+filename <- grep(sprintf("%s_SeuratObj.rds",optimal_res),list.files(path = input_dir),value = T)[1]
+seuratObj = readRDS(paste(input_dir,filename,sep = "/"))
+
+seuratObj@misc[["optimal_res"]] <- optimal_res
+
+```
+
+
+```{r helper_functions, echo = F, eval = T}
+
+recursive_paste <- function(object,list_names,sep = "_"){
+  length_n <- length(list_names)
+  if ((length_n) == 1){
+    return(object@meta.data[[list_names[1]]])
+  }
+	if ((length_n) == 2){
+		return(paste(object@meta.data[[list_names[length_n - 1]]],object@meta.data[[list_names[length_n]]],sep = sep))
+	}
+	else{
+		paste_1 <- list_names[length_n - 1]
+		paste_2 <- list_names[length_n]
+		pasted <- paste(paste_1,paste_2,sep = sep)
+		object <- AddMetaData(object = object, paste(object@meta.data[[paste_1]],object@meta.data[[paste_2]],sep = sep), col.name = pasted)
+		reduced_list <- list_names[1:(length_n-2)]
+		new_list <- c(reduced_list,pasted)
+		return(recursive_paste(object,new_list,sep = sep))
+	}
+}
+
+get_overlap_combi <- function(df,combi,sep){
+  new_list <- NULL
+  for (i in 1:length(combi)){
+    current_piece <- sapply(strsplit(as.character(df[,1]),sprintf("\\%s",sep)), "[[",combi[i])
+    if (i == 1){
+      new_list <- current_piece
+    }
+    else{
+    new_list <- paste(new_list,current_piece, sep = sep)
+    }
+  }
+  return(new_list)
+}
+
+get_new_column <- function(df,names_list,combi,sep){
+  column_new <- NULL
+  df <- get_overlap_combi(df,combi,sep)
+  # loop through and get 
+  for (i in names_list){
+    locations <- grep(i,df)
+    column_new[locations] <- i
+  }
+  return(column_new)
+}
+
+make_meta_counts_table <- function(object,meta_list,sep){
+  #requires library tidyr
+  # and dpylr
+  #object = seurat Object
+  #meta_list = column names from meta.data
+  #sep = the separator to use. This is fragile depending on how the data in the columns are parsed. for example if sep = "_" and there are underscores in the meta data then this function will behave erradictly of break completely
+	#get starting data frame
+	df <- as.data.frame(table(recursive_paste(object,meta_list,sep = sep)))
+	#go through different combinations starting with groups of 3, then 2, then 1
+	for (i in 1:(length(meta_list)-1)){
+  matrix_comb <- combn(meta_list,i) #cominations with "ith" number of meta columns. ie:  if i = 2, then matrix_comb is all combinations of the meta_list ((length of meta list) CHOOSE 2 combinations)
+    for (k in 1:ncol(matrix_comb)){
+        current_combination <- matrix_comb[,k]
+        tab <- table(recursive_paste(object,current_combination,sep= sep))
+        n_combi <- which(meta_list %in% current_combination)
+        new_col_name <- paste(matrix_comb[,k],collapse = "_")
+        df[[new_col_name]] <- get_new_column(df,unique(names(tab)),n_combi,sep)
+        df[[paste("n_cells",new_col_name,sep = "_")]] <- mapvalues(df[[new_col_name]],from = names(tab),to = tab)
+    }
+  }
+	return(df)
+}
+
+```
+
+
+# 2. Cell/Cluster Identification
+
+
+
+
+## Bulk
+
+avg_logFC: log fold-chage of the average expression between the two groups. Positive values indicate that the gene is more highly expressed in the first group
+
+*pct.1*: The percentage of cells where the gene is detected in the *contrast*
+
+*pct.2*: The percentage of cells where the gene is detected in the *baseline*
+
+p_val_adj: Adjusted p-value, based on bonferroni correction using all genes in the dataset
+
+
+```{r echo = F, message=F, warning=F}
+
+
+n_genes <- 10
+
+
+bulk_DE <- read.delim(marker_file,header=TRUE,row.names=1,sep="\t")
+#seuratObj$condition2 <- mapvalues(seuratObj$condition, from = "flow", to = "fresh")
+
+datatable(bulk_DE)
+```
+
+
+```{r echo = F, eval = T, warning = F}
+
+df <- make_meta_counts_table(seuratObj,meta_list = seuratObj@misc[["meta_tab"]],sep = "_")
+colnames(df) <- c("SampleID","n_Cells",colnames(df)[3:length(colnames(df))])
+kable(df)
+```
+
+```{r echo  = F, eval = T, cache=T}
+
+
+bulk_DE$delta <- log2(bulk_DE$pct.1/bulk_DE$pct.2)
+bulk_DE$delta_pc <- bulk_DE$pct.1-bulk_DE$pct.2
+
+bulk_DE_filtered <- subset(bulk_DE, subset = p_val < 0.05)
+
+bulk_DE_filtered$label <- paste(rownames(bulk_DE_filtered)," : ", bulk_DE_filtered$avg_logFC, sep="")
+plot_ly(bulk_DE_filtered,
+          x = ~avg_logFC, y = ~delta_pc,
+          color = ~p_val_adj,
+           # you can just run this against the column for the gene as well using ~ACTB, the algorith will automatically scale in that case based on maximal and minimal values
+          opacity = .5,
+          type = "scatter", 
+          mode = "markers",
+          marker = list(size = 5, width=2), 
+          text=~label,
+          hoverinfo="text"
+)
+
+```
+
+## UMAP
+
+## Naive
+
+```{r naive, echo = F, eval = T}
+
+
+naive_seurat <- readRDS(naive_seurat)
+dimP <- DimPlot(object = naive_seurat, reduction = "umap", label = F, group.by = "orig.ident") + theme(text = element_text(size = 8))
+dimP <- LabelClusters(plot = dimP,id = "orig.ident",repel = T, size = 2.4)
+dimP
+
+```
+
+
+## Integration with anchoring cells via seurat Integration
+
+```{r dimPlot_umaps1, echo = F, eval = T}
+
+dimP <- DimPlot(object = seuratObj, reduction = "umap", label = F, group.by = "orig.ident") + theme(text = element_text(size = 8))
+dimP <- LabelClusters(plot = dimP,id = "orig.ident",repel = T, size = 2.4)
+
+dimP
+
+```
+
+```{r dimPlot_umaps, echo = F, eval = T}
+column_cluster <- sprintf("integrated_snn_res.%s",optimal_res)
+dimP <- DimPlot(object = seuratObj, reduction = "umap", label = F, group.by = column_cluster) + theme(text = element_text(size = 8))
+dimP <- LabelClusters(plot = dimP,id = column_cluster,repel = T, size = 2.4)
+ggsave(filename = sprintf(fmt = "%s_%s_optimal_cluster.tiff",seuratObj@project.name,optimal_res), plot = dimP, device = "tiff",path = out_dir)
+dimP
+
+```
+
+```{r dimPlot_umaps_split, echo = F, eval = T}
+
+
+
+for (meta in seuratObj@misc[["meta_tab"]]){
+	dimP <- DimPlot(object = seuratObj, reduction = "umap", label = F, group.by = column_cluster, split.by = meta) + theme(text = element_text(size = 8))
+	dimP <- LabelClusters(plot = dimP,id = column_cluster,repel = T, size = 2.4)
+	ggsave(filename = sprintf(fmt = "%s_%s_split_by_umap.tiff",meta,optimal_res), plot = dimP, device = "tiff",path = out_dir)
+	print(dimP)
+}
+
+```
+
+
+
+```{r GO_plots, echo = F, eval = T }
+library(ggrepel)
+go_down <- read.delim(GO_down)
+go_up <- read.delim(GO_up)
+
+go_down <- subset(go_down, subset= p.adj < 0.05)
+
+go_down$enrich[grep("Inf",go_down$enrich)] <- NA
+scaled_go <- go_down$enrich/sd(go_down$enrich,na.rm = T)
+max_scaled <- max(scaled_go[which(!is.na(scaled_go))])
+scaled_go[which(is.na(scaled_go))] <- max_scaled+0.5
+go_down$enrich <- scaled_go
+
+p <- ggplot(data = go_down, aes(x=enrich, y = p.adj, size = Annotated, color = Term)) 
+	+ geom_point(position = "jitter",alpha=0.5) + ggtitle("Down")
+	+ geom_label_repel(aes(label=Term),point.padding = 0.5,size = 3.5, show.legend = F)
+	
+ggplotly(p)
+
+
+
+go_up <- subset(go_up, subset= p.adj < 1)
+
+go_up$enrich[grep("Inf",go_up$enrich)] <- NA
+scaled_go <- go_up$enrich/sd(go_up$enrich,na.rm = T)
+max_scaled <- max(scaled_go[which(!is.na(scaled_go))])
+scaled_go[which(is.na(scaled_go))] <- max_scaled+0.5
+go_up$enrich <- scaled_go
+
+p <- ggplot(data = go_up, aes(x=enrich, y = p.adj, size = Annotated, color = Term)) 
+	+ geom_point(position = "jitter",alpha=0.5) + ggtitle("Up")
+	+ geom_label_repel(aes(label=Term),point.padding = 0.5,size = 3.5, show.legend = F)
+	
+ggplotly(p)
+
+
+```
+
+
+
+```{r echo = F, eval = T, warning = F}
+#uses cononical correlation analysis and mutual neighest neighbor to determine putative "anchors" 
+CCA first finds the covariance between the datasets and then finds mutual neighest neighbors as putative "anchors"
+Low probability anchors get filitred out before 
+meta_tab <- seuratObj@misc[["meta_tab"]]
+
+plotting.data <- FetchData(object = seuratObj, vars = c("UMAP_1", "UMAP_2", "UMAP_3", meta_tab[1]), slot = 'data')
+
+plotting.data$label <- paste(rownames(plotting.data)," - ", plotting.data[[meta_tab[1]]], sep="")
+
+
+plot_ly(data = plotting.data, 
+        x = ~UMAP_1, y = ~UMAP_2, z = ~UMAP_3, 
+        color = plotting.data[[meta_tab[1]]], # you can just run this against the column for the gene as well using ~ACTB, the algorith will automatically scale in that case based on maximal and minimal values
+        opacity = .5,
+        colors = rev(colors), 
+        type = "scatter3d", 
+        mode = "markers",
+        marker = list(size = 5, width=2), 
+        text=~label,
+        hoverinfo="text"
+)
+
+
+gpLot <- DimPlot(seuratObj, reduction = "umap", group.by = meta_tab[2])
+gbuild <- ggplot2::ggplot_build(gpLot)
+colors <- unique(gbuild[[1]][[1]]$colour)
+
+plotting.data <- FetchData(object = seuratObj, vars = c("UMAP_1", "UMAP_2", "UMAP_3", meta_tab[2]), slot = 'data')
+
+plotting.data$label <- paste(rownames(plotting.data)," - ", plotting.data[[meta_tab[2]]], sep="")
+
+
+plot_ly(data = plotting.data, 
+        x = ~UMAP_1, y = ~UMAP_2, z = ~UMAP_3, 
+        color = plotting.data[[meta_tab[2]]], # you can just run this against the column for the gene as well using ~ACTB, the algorith will automatically scale in that case based on maximal and minimal values
+        opacity = .5,
+        colors = rev(colors), 
+        type = "scatter3d", 
+        mode = "markers",
+        marker = list(size = 5, width=2), 
+        text=~label,
+        hoverinfo="text"
+)
+
+
+gpLot <- DimPlot(seuratObj, reduction = "umap", group.by = meta_tab[3])
+gbuild <- ggplot2::ggplot_build(gpLot)
+colors <- unique(gbuild[[1]][[1]]$colour)
+
+plotting.data <- FetchData(object = seuratObj, vars = c("UMAP_1", "UMAP_2", "UMAP_3", meta_tab[3]), slot = 'data')
+
+plotting.data$label <- paste(rownames(plotting.data)," - ", plotting.data[[meta_tab[3]]], sep="")
+
+
+plot_ly(data = plotting.data, 
+        x = ~UMAP_1, y = ~UMAP_2, z = ~UMAP_3, 
+        color = plotting.data[[meta_tab[3]]], # you can just run this against the column for the gene as well using ~ACTB, the algorith will automatically scale in that case based on maximal and minimal values
+        opacity = .5,
+        colors = rev(colors), 
+        type = "scatter3d", 
+        mode = "markers",
+        marker = list(size = 5, width=2), 
+        text=~label,
+        hoverinfo="text"
+)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+#### Session Information
+```{r, echo=FALSE}
+sessionInfo()
+```
+

@@ -18,8 +18,7 @@ rule postprocess:
 	conda:
 		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/resolution_post_processing.Rmd', output_file = {output.html}, params=list(optimal_res = {input.optimal_res_file}, destDir = {params.directory}, seed={params.seed}, input_dir={params.input_directory}, GOdown={input.down}, GOup = {input.up}, type={params.type}, markers={input.bulk_markers}))"	
-		
+		"""Rscript rmarkdown::render("../scripts/resolution_post_processing.Rmd", output_file = {output.html}, params=list(optimal_res = {input.optimal_res_file}, destDir = {params.directory}, seed={params.seed}, input_dir={params.input_directory}, GOdown={input.down}, GOup = {input.up}, type={params.type}, markers={input.bulk_markers}))"""
 
 
 rule global_diffexp:
@@ -38,7 +37,7 @@ rule global_diffexp:
 	script:
 		"../scripts/Global_DE.R"	
 
-		
+
 rule GO_global:
 	input:
 		degFile="results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
@@ -55,7 +54,7 @@ rule GO_global:
 		up_dag_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_dag".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_barplot_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_dag_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		up_consolidated_out = lambda w: "results/{GO_global/}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp),
+		up_consolidated_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp),
 		down_consolidated_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp)
 	conda:
 		"../envs/runGO.yaml"
@@ -63,7 +62,6 @@ rule GO_global:
 		"../scripts/runGO_singlecell.R"
 
 
-		
 rule optimal_res:
 	input:
 		RNA=expand("results/{{wave}}/intermediate/{resolution}_RNA_cluster_markers.tsv",resolution = resolutions),
@@ -76,7 +74,8 @@ rule optimal_res:
 		"../envs/seurat.yaml"
 	script:
 		"../scripts/optimal_res.py"
-		
+
+
 rule intermediate_processing:
 	input:
 		"results/{wave}/preprocessing/SeuratObj_{wave}.rds"
@@ -97,7 +96,8 @@ rule intermediate_processing:
 		"../envs/seurat.yaml"
 	script:
 		"../scripts/run_FindAllMarkers.R"
-		
+
+
 rule simple_merge:
 	input:
 		"input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
@@ -112,7 +112,8 @@ rule simple_merge:
 		"../envs/seurat.yaml"
 	script:
 		"../scripts/scRNApreprocess_simple_merge.R"
-		
+
+
 rule preprocessing:
 	input:
 		"input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
@@ -126,4 +127,4 @@ rule preprocessing:
 	conda:
 		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/scRNApreprocessing.Rmd', output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"
+		"""Rscript rmarkdown::render("../scripts/scRNApreprocessing.Rmd", output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"""

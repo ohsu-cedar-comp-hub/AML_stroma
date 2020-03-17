@@ -365,7 +365,11 @@ plot_ly(data = plotting.data,
 ```
 
 
+```{r cellBrowser, echo = F, eval = F}
+seuratObj$clusters <- seuratObj@meta.data[[sprintf(integrated_snn_res.%s,optimal_res)]]
+ExportToCellbrowser(seuratObj,dir='./cellBrowser',dataset.name=seuratObj@project.name,reductions=c('umap'),markers.file=file_name,cluster.field='clusters',Phase='Phase',condition='condition',clusters='clusters')
 
+```
 
 
 

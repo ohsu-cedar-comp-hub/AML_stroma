@@ -12,6 +12,7 @@ params:
   run2process: "metafile"
   seed: "1234"
   reference_set: "default"
+  out_rds: "output_file"
 
 ---
 
@@ -31,16 +32,16 @@ options(future.globals.maxSize = 60000 * 1024^2)
 
 set.seed(as.numeric(params$seed))
 
-out_rds <- snakemake@output[["seurat_obj"]]
+out_rds <- params$out_rds
 
 # Load library to allow parallelization
 # Note: options are multiprocess, sequential
-run2process <- params$run2process
-directory_out <- params$destDir
-if(!(file.exists(directory_out))) {
-  dir.create(directory_out,showWarnings = FALSE, recursive = TRUE)
+run2process <- as.character(params$run2process)
+out_dir <- paste(strsplit(params$out_rds,"/")[[1]][-length(strsplit(params$out_rds,"/")[[1]])],collapse="/")
+if(!(file.exists(out_dir))) {
+  dir.create(out_dir,showWarnings = FALSE, recursive = TRUE)
 }
-run2process <- read.delim(run2process, header = F)
+run2process <- read.delim(run2process, header = T)
 reference_set <- ifelse(params$reference_set=="default",NULL,params$reference_set)
 integrate_samples <- ifelse(dim(run2process)[1] > 1,TRUE,FALSE)
 ```
@@ -132,14 +133,14 @@ for (counter in names(seuratObj_ls)){
 }
 
 
-setwd(directory_out)
-out_dir <- paste(directory_out)
+#setwd(directory_out)
+#out_dir <- paste(directory_out)
 ```
 
 
 
 ### Calculate % Mitochondrial Genes per cell
-```{r, calcMito, echo=FALSE}
+```{r, calcMito, echo=FALSE, eval = T}
 
 
 #Visualize QC metrics as a violin plot
@@ -258,9 +259,9 @@ JackStrawPlot(all.integrated, dims = 1:20)
 
 ### Write the Seurat object to a file
 
-```{r, saveObject, echo=FALSE}
+```{r, saveObject, echo=FALSE, eval = T}
 
-all.integrate@misc[["meta_tab"]] <- meta_tab_list
+all.integrated@misc[["meta_tab"]] <- meta_tab_list
 
 if (params$file2save == "default") {
   file2save <- "all_samples"

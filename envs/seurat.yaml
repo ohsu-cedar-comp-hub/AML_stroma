@@ -187,6 +187,7 @@ dependencies:
   - r-reshape2=1.4.3
   - r-reticulate=1.13
   - r-rlang=0.4.1
+  - r-rmarkdown
   - r-rocr=1.0_7
   - r-rspectra=0.15_0
   - r-rsvd=1.0.2

@@ -4,14 +4,17 @@ options(future.globals.maxSize =90e+09)
 
 resolution = as.double(snakemake@params[["resolution"]])
 ########################################## finish it
-set.seed(as.numeric(snakemake@params[["seed"]]) #seed arg
-directory_out <- as.character(snakemake@output[["directory"]])
-input_rds <- as.character(snakemake@input)
+set.seed(as.numeric(snakemake@params[["seed"]])) #seed arg
+out_dir <- paste(getwd(),as.character(snakemake@params[["directory"]]),sep="/")
+input_rds <- paste(getwd(),snakemake@input[["seuratObj"]],sep="/")
 max_nFeature <- as.numeric(snakemake@params[["max_nFeature"]])
 min_nFeature <- as.numeric(snakemake@params[["min_nFeature"]])
 max_mito <- as.numeric(snakemake@params[["max_mito"]])
 n_Dims <- as.numeric(snakemake@params[["n_Dims"]])
 n_cores <- as.numeric(snakemake@params[["n_cores"]])
+seurat_out <- paste(getwd(),snakemake@output[["seuratObj"]],sep="/")
+RNA_out <- paste(getwd(),snakemake@output[["RNA"]],sep="/")
+integrated_out <- paste(getwd(),snakemake@output[["Integrated"]],sep="/")
 
 library(Seurat)
 library(cowplot)
@@ -28,11 +31,17 @@ library(reshape2)
 #file_path <- paste(patient_path,'integrated_analysis',sep = "/")
 #dir.create(file_path, showWarnings = FALSE)
 
-if(!(file.exists(directory_out))) {
-  dir.create(directory_out,showWarnings = FALSE, recursive = TRUE)
+print(out_dir)
+print(input_rds)
+print(seurat_out)
+print(RNA_out)
+print(integrated_out)
+
+if(!(file.exists(out_dir))) {
+  dir.create(out_dir,showWarnings = FALSE, recursive = TRUE)
 }
-setwd(directory_out)
-file_path <- directory_out
+setwd(out_dir)
+file_path <- out_dir
 ################################# functions ################################
 
 
@@ -48,8 +57,9 @@ simpleCap <- function(x) {
 
 
 
-integrated = readRDS(input_rds)
+integrated = readRDS(file = input_rds)
 #
+
 
 DefaultAssay(object = integrated) <- "RNA"
 
@@ -119,7 +129,7 @@ Idents(integrated) <- paste("integrated_snn_res",resolution,sep=".")
 plan("multiprocess", workers = n_cores)
 cluster_markers <- FindAllMarkers(integrated, only.pos = T, logfc.threshold=0.2, assay = "integrated") #using integrated
 saveRDS(cluster_markers, paste(file_path,paste(resolution,sep='_','integrated_cluster_markers.rds'),sep="/"))
-write.table(cluster_markers, file = paste(file_path,paste(resolution, sep="_", "integrated_cluster_markers.tsv"),sep="/"), sep = "\t", row.names=T, quote=F)
+write.table(cluster_markers, file = integrated_out, sep = "\t", row.names=T, quote=F)
 
 
 ##############################################  Log Normalize ############################################################
@@ -135,10 +145,10 @@ DefaultAssay(integrated) <- "RNA"
 plan("multiprocess", workers = n_cores)
 cluster_markers <- FindAllMarkers(integrated, only.pos = T, logfc.threshold=0.2) #using RNA
 saveRDS(cluster_markers, paste(file_path,paste(resolution,sep='_','RNA_cluster_markers.rds'),sep="/"))
-write.table(cluster_markers, file = paste(file_path,paste(resolution, sep="_", "RNA_cluster_markers.tsv"),sep="/"), sep = "\t", row.names=T, quote=F)
+write.table(cluster_markers, file = RNA_out, sep = "\t", row.names=T, quote=F)
 
 
 
-saveRDS(integrated, paste(file_path,sprintf('%s_SeuratObj.rds',resolution),sep="/"))
+saveRDS(integrated, seurat_out)
 
 print("COMPLETED")

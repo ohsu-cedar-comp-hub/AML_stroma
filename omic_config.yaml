@@ -1,5 +1,6 @@
 assembly:
-  mm10.Ens_96 
+  hg19
+  #mm10.Ens_96
 
 FC:
   1
@@ -22,6 +23,8 @@ n_Dims:
     30
 n_cores:
     4
+reference:
+    cultured
 diffexp:
     global_contrasts:
         condition: #contrast 1st, baseline 2nd

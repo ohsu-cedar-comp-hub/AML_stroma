@@ -18,7 +18,7 @@ help <- function(){
 
 set.seed(as.numeric(snakemake@params[['seed']]))
 degFile <- snakemake@input[['degFile']]
-
+#done_file <- snakemake@output[["done_file"]]
 assembly <- snakemake@params[['assembly']]
 
 FC <- snakemake@params[['FC']]
@@ -221,3 +221,4 @@ go.DN.BP <- go.DN.BP[is.finite(go.DN.BP$enrich),]
 setName <- paste(substr(comparison,26,nchar(comparison)-4),"barplot","downFC",FC, "adjp", adjp, sep=".")
 drawBarplot(go=go.DN.BP,ontology="BP",setName=setName, setSize=dn.setsize, fname=down_barplot_out )}
 
+#write.table(NA,file = done_file)

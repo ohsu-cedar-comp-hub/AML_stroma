@@ -14,17 +14,21 @@ rule postprocess:
 		directory = lambda wildcards:"results/{wave}/post_{type}/{adjp}_{FC}_{contrast_DE}".format(wave=wildcards.wave,type=wildcards.type,adjp=wildcards.adjp,FC=wildcards.FC,contrast_DE=wildcards.contrast_DE),
 		seed=config["seed"],
 		input_directory="results/{wave}/post_processing",
-		type = lambda wildcards: "{}".format(wildcards.type)
+		type = lambda wildcards: "{}".format(wildcards.type),
+		script="scripts/resolution_post_processing.Rmd"
 	conda:
 		"../envs/seurat.yaml"
 	shell:
-		"Rscript rmarkdown::render('../scripts/resolution_post_processing.Rmd', output_file = {output.html}, params=list(optimal_res = {input.optimal_res_file}, destDir = {params.directory}, seed={params.seed}, input_dir={params.input_directory}, GOdown={input.down}, GOup = {input.up}, type={params.type}, markers={input.bulk_markers}))"	
+		"""
+		Rscript -e 'rmarkdown::render(\"./{params.script}\", output_file = \"../{output.html}\", params=list(optimal_res = \"../{input.optimal_res_file}\", destDir = \"../{params.directory}\", seed=\"{params.seed}\", input_dir=\"../{params.input_directory}\", GOdown=\"../{input.down}\", GOup = \"../{input.up}\", type=\"{params.type}\", markers=\"../{input.bulk_markers}\"))'
+		"""	
 		
 
 
 rule global_diffexp:
 	input:
 		optimal_res_file="results/{wave}/intermediate/{type}_optimal_resolution.txt" # extract optimal_res output and get rds from intermediate files
+		#seuratObj="results/{wave}/intermediate/{resolution}_SeuratObj.rds"
 	output:
 		marker_file = "results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
 	params:
@@ -32,7 +36,8 @@ rule global_diffexp:
 		input_directory = "results/{wave}/intermediate",
 		out_dir = lambda wildcards: "results/{}/global_diffexp".format(wildcards.wave),
 		contrast_DE=get_contrast_global, #named list
-		type = lambda wildcards: "{}".format(wildcards.type)
+		type = lambda wildcards: "{}".format(wildcards.type),
+		n_cores=config["n_cores"]
 	conda:
 		"../envs/seurat.yaml"
 	script:
@@ -73,13 +78,13 @@ rule optimal_res:
 	params:
 		out_dir = lambda wildcards: "results/{}/intermediate".format(wildcards.wave)
 	conda:
-		"../envs/seurat.yaml"
+		"../envs/python.yaml"
 	script:
 		"../scripts/optimal_res.py"
 		
 rule intermediate_processing:
 	input:
-		"results/{wave}/preprocessing/SeuratObj_{wave}.rds"
+		seuratObj="results/{wave}/preprocessing/SeuratObj_{wave}.rds"
 	output:	
 		RNA="results/{wave}/intermediate/{resolution}_RNA_cluster_markers.tsv",
 		Integrated="results/{wave}/intermediate/{resolution}_integrated_cluster_markers.tsv",
@@ -115,15 +120,22 @@ rule simple_merge:
 		
 rule preprocessing:
 	input:
-		"input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
+		meta = "input/{wave}_metadata.txt" #input is a metafile.tsv with tab delim, first column is 10x files locations and 2nd column is underscore separated metadata
 	output:
 		seurat_obj="results/{wave}/preprocessing/SeuratObj_{wave}.rds",
 		html="results/{wave}/preprocessing/preprocessing.html"
 	params:
-		directory= lambda wildcards: "results/{wave}/preprocessing".format(wave = wildcards.wave),
+		#directory= lambda wildcards: "./results/{wave}/preprocessing".format(wave = wildcards.wave),
+		#dir = "results/{wave}/preprocessing",
 		seed=config["seed"],
-		reference=config["reference"]
+		reference=config["reference"],
+		script="scripts/scRNApreprocess.Rmd" 
 	conda:
 		"../envs/seurat.yaml"
-	shell:
-		"""Rscript rmarkdown::render("../scripts/scRNApreprocessing.Rmd", output_file = {output.html}, params=list(run2process = {input}, destDir = {params.directory}, seed={params.seed}, reference_set={params.reference}))"""
+	shell: 
+		"""
+		Rscript -e 'rmarkdown::render(\"./{params.script}\", output_file = \"../{output.html}\", params=list(run2process = \"../{input.meta}\", seed=\"{params.seed}\",reference_set=\"{params.reference}\",out_rds=\"../{output.seurat_obj}\"))'
+		"""#paste(paste(strsplit(getwd(),"/")[[1]][-length(strsplit(getwd(),"/")[[1]])],collapse="/"),\"{output.seurat_obj}\",sep="/")
+	#shell is being called from the directory that snakemake was called in ('pipeline').
+	#then the rest of the parameters of rmarkdown render is in the folder from where the script is ('pipeline/scripts')
+	#that is why you need to add the "../" before the parameters

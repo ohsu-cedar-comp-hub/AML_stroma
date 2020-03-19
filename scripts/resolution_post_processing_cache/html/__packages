@@ -1,0 +1,11 @@
+base
+Seurat
+data.table
+knitr
+ggplot2
+gridExtra
+DT
+plyr
+future
+tidyr
+plotly

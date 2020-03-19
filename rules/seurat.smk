@@ -9,18 +9,17 @@ rule postprocess:
 		bulk_markers="results/{wave}/global_diffexp/{type}_{contrast_DE}_optimal_marker.tsv"
 	output:
 		html = "results/{wave}/post/{adjp}_{FC}_{contrast_DE}/optimal_{type}_summary.html",
-		seuratObj = "results/{wave}/post_{type}/{adjp}_{FC}_{contrast_DE}/optimal_seuratObj.rds"
+		seuratObj = "results/{wave}/post/{adjp}_{FC}_{contrast_DE}/optimal_{type}_seuratObj.rds"
 	params:
 		directory = lambda wildcards:"results/{wave}/post_{type}/{adjp}_{FC}_{contrast_DE}".format(wave=wildcards.wave,type=wildcards.type,adjp=wildcards.adjp,FC=wildcards.FC,contrast_DE=wildcards.contrast_DE),
 		seed=config["seed"],
-		input_directory="results/{wave}/post_processing",
 		type = lambda wildcards: "{}".format(wildcards.type),
 		script="scripts/resolution_post_processing.Rmd"
 	conda:
 		"../envs/seurat.yaml"
 	shell:
 		"""
-		Rscript -e 'rmarkdown::render(\"./{params.script}\", output_file = \"../{output.html}\", params=list(optimal_res = \"../{input.optimal_res_file}\", destDir = \"../{params.directory}\", seed=\"{params.seed}\", input_dir=\"../{params.input_directory}\", GOdown=\"../{input.down}\", GOup = \"../{input.up}\", type=\"{params.type}\", markers=\"../{input.bulk_markers}\"))'
+		Rscript -e 'rmarkdown::render(\"./{params.script}\", output_file = \"../{output.html}\", params=list(optimal_res = \"../{input.optimal_res_file}\", destDir = \"../{params.directory}\", seed=\"{params.seed}\",  GOdown=\"../{input.down}\", GOup = \"../{input.up}\", type=\"{params.type}\", markers=\"../{input.bulk_markers}\", output_file=\"../{output.seuratObj}\",naive_seurat=\"../{input.naive_seurat}\"))'
 		"""	
 		
 
@@ -55,13 +54,13 @@ rule GO_global:
 		assembly = config["assembly"],
 		FC = config["FC"],
 		adjp = config["adjp"],
-		out_dir = lambda w: "results/GO_global/{}".format(w.contrast_DE),
-		up_barplot_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		up_dag_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_dag".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		down_barplot_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		down_dag_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		up_consolidated_out = lambda w: "results/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp),
-		down_consolidated_out = lambda w: "results/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.type, w.contrast_DE, w.FC, w.adjp)
+		out_dir = lambda w: "results/{}/GO_global/{}".format(w.wave,w.contrast_DE),
+		up_barplot_out = lambda w: "results/{}/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp),
+		up_dag_out = lambda w: "results/{}/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_dag".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp),
+		down_barplot_out = lambda w: "results/{}/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp),
+		down_dag_out = lambda w: "results/{}/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_barplot.pdf".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp),
+		up_consolidated_out = lambda w: "results/{}/GO_global/{}/{}.upFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp),
+		down_consolidated_out = lambda w: "results/{}/GO_global/{}/{}.downFC.{}.adjp.{}.BP_GO_consolidated.tsv".format(w.wave,w.type, w.contrast_DE, w.FC, w.adjp)
 	conda:
 		"../envs/runGO.yaml"
 	script:

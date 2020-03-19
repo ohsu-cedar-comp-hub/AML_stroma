@@ -99,7 +99,7 @@ run2process <- run2process[order(run2process[,2]),] #order by sampleID
 
 
 for (i in 1:dim(run2process)[1]){
-	
+	meta_tab_list <- NULL
 	input.data <- Read10X(data.dir = as.character(run2process[i,1]))
 	# Initialize the Seurat object with the raw (non-normalized data).
 	current_sample_ID <- as.character(run2process[i,2])
@@ -261,7 +261,7 @@ JackStrawPlot(all.integrated, dims = 1:20)
 
 ```{r, saveObject, echo=FALSE, eval = T}
 
-all.integrated@misc[["meta_tab"]] <- meta_tab_list
+all.integrated@misc[["meta_tab"]] <- unique(meta_tab_list)
 
 if (params$file2save == "default") {
   file2save <- "all_samples"
